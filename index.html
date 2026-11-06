@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Os Sete Sinos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="css/estilo.css">
+</head>
+<body>
+<canvas id="map" aria-label="Mapa do mundo de campanha"></canvas>
+
+<header id="top" class="panel">
+  <div class="brand">OS SETE SINOS<small id="worldname"></small></div>
+  <div class="seg" role="group" aria-label="Quem está vendo o mapa">
+    <button id="m-dm" class="btn on">Mestre</button><button id="m-pl" class="btn">Jogadores</button>
+  </div>
+  <button id="b-places" class="btn">Lugares</button>
+  <button id="b-realms" class="btn">Reinos</button>
+  <button id="b-ficha" class="btn">Ficha</button>
+  <button id="b-lore" class="btn">Crônicas</button>
+  <button id="b-world" class="btn">Campanha</button>
+  <button id="b-help" class="btn" aria-label="Ajuda">?</button>
+  <button id="b-side" class="btn m-only">Mapa</button>
+  <button id="b-dice" class="btn m-only">Dados</button>
+</header>
+
+<aside id="side" class="panel fold">
+  <canvas id="mini" width="240" height="160" aria-label="Minimapa"></canvas>
+  <div class="scale tn"><span id="zoomv">1x</span><span title="Um dia de marcha em ritmo normal">1 hex = 36 km</span></div>
+  <div class="layers">
+    <label><input type="checkbox" id="l-realms" checked>Reinos</label>
+    <label><input type="checkbox" id="l-roads" checked>Estradas</label>
+    <label><input type="checkbox" id="l-labels" checked>Nomes</label>
+    <label><input type="checkbox" id="l-hex">Hexágonos</label>
+    <label id="l-fog-w"><input type="checkbox" id="l-fog" checked>Névoa</label>
+    <label><input type="checkbox" id="l-clouds" checked>Nuvens</label>
+  </div>
+  <div class="party">
+    <div class="row" style="justify-content:space-between"><span class="label">Calendário</span><span class="tn">Dia <b id="day">1</b></span></div>
+    <div id="dm-party" class="row">
+      <button id="d-m" class="btn small" aria-label="Voltar um dia">−1</button>
+      <button id="d-p" class="btn small" aria-label="Avançar um dia">+1 dia</button>
+      <button id="b-enc" class="btn small">Rolar encontro</button>
+    </div>
+    <label class="row"><span class="label">Ritmo</span>
+      <select id="pace" class="btn small" style="flex:1">
+        <option value="27">Lento · 27 km/dia</option>
+        <option value="36" selected>Normal · 36 km/dia</option>
+        <option value="45">Rápido · 45 km/dia</option>
+      </select></label>
+  </div>
+</aside>
+
+<section id="dice" class="panel" aria-label="Dados">
+  <div class="dgrid" id="dgrid"></div>
+  <div id="log" aria-live="polite"></div>
+</section>
+
+<aside id="card" class="panel" hidden></aside>
+<aside id="list" class="panel" hidden></aside>
+
+<nav id="tools" class="panel" aria-label="Ferramentas">
+  <div class="seg" id="toolbar"></div>
+  <div id="fogopts" hidden>
+    <div class="seg"><button id="f-show" class="btn small on">Revelar</button><button id="f-hide" class="btn small">Esconder</button></div>
+    <label class="row"><span class="label">Pincel</span><input id="f-size" type="range" min="2" max="16" value="6" aria-label="Tamanho do pincel"></label>
+    <button id="f-all" class="btn small">Revelar tudo</button>
+    <button id="f-none" class="btn small">Cobrir tudo</button>
+  </div>
+  <div id="status"></div>
+</nav>
+
+<section id="imersao" hidden>
+  <div id="im-top"><div id="migalhas"></div><div id="hud"></div><button id="im-ficha" class="btn small">Ficha</button><button id="im-lore" class="btn small">Crônicas</button></div>
+  <div id="palco"><div id="quadro"><canvas id="arte" aria-label="Ilustração da cena"></canvas><div id="pins"></div><div id="balao" hidden></div><div id="selo" hidden>O mestre está pintando a cena…</div></div></div>
+  <aside id="mestre" aria-live="polite"><div class="quem">O mestre narra <span id="mestre-vivo" hidden>· ao vivo</span></div><h2 id="titulo"></h2><div id="falas"></div><div id="opcoes"></div>
+    <form id="fala" hidden><textarea id="fala-txt" rows="2" maxlength="2000" placeholder="Diga ao mestre o que você faz" aria-label="Fale com o mestre"></textarea><button id="fala-ir" class="btn gold">Falar</button></form></aside>
+</section>
+<section id="prologo" hidden></section>
+
+<div id="dialog" class="panel dialog" role="dialog" aria-modal="true" hidden></div>
+<div id="busy">Desenhando o mundo…</div>
+
+<script src="js/mapa.js"></script>
+<script src="js/arte.js"></script>
+<script src="js/campanha.js"></script>
+<script src="js/jogo.js"></script>
+</body>
+</html>

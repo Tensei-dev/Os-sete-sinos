@@ -1,0 +1,5 @@
+# gerador de imagens local (ambiente Python e modelos)
+.ia/
+node_modules/
+# pinturas criadas durante as partidas
+img/vivo/
