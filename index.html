@@ -4,9 +4,6 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Os Sete Sinos</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400;0,700;1,400&family=Pixelify+Sans:wght@400;600;700&display=swap">
 <link rel="stylesheet" href="css/estilo.css">
 </head>
 <body>
@@ -19,10 +16,12 @@
   </div>
   <button id="b-places" class="btn">Lugares</button>
   <button id="b-realms" class="btn">Reinos</button>
+  <button id="b-salvar" class="btn">Salvar</button>
   <button id="b-ficha" class="btn">Ficha</button>
   <button id="b-lore" class="btn">Crônicas</button>
   <button id="b-world" class="btn">Campanha</button>
   <button id="b-help" class="btn" aria-label="Ajuda">?</button>
+  <button id="b-cheia" class="btn">Tela cheia</button>
   <button id="b-side" class="btn m-only">Mapa</button>
   <button id="b-dice" class="btn m-only">Dados</button>
 </header>
@@ -74,7 +73,7 @@
 </nav>
 
 <section id="imersao" hidden>
-  <div id="im-top"><div id="migalhas"></div><div id="hud"></div><button id="im-ficha" class="btn small">Ficha</button><button id="im-lore" class="btn small">Crônicas</button></div>
+  <div id="im-top"><div id="migalhas"></div><div id="hud"></div><button id="im-salvar" class="btn small">Salvar</button><button id="im-ficha" class="btn small">Ficha</button><button id="im-lore" class="btn small">Crônicas</button><button id="im-limpa" class="btn small">Ver imagem</button><button id="im-cheia" class="btn small">Tela cheia</button></div>
   <div id="palco"><div id="quadro"><canvas id="arte" aria-label="Ilustração da cena"></canvas><div id="pins"></div><div id="balao" hidden></div><div id="selo" hidden>O mestre está pintando a cena…</div></div></div>
   <aside id="mestre" aria-live="polite"><div class="quem">O mestre narra <span id="mestre-vivo" hidden>· ao vivo</span></div><h2 id="titulo"></h2><div id="falas"></div><div id="opcoes"></div>
     <form id="fala" hidden><textarea id="fala-txt" rows="2" maxlength="2000" placeholder="Diga ao mestre o que você faz" aria-label="Fale com o mestre"></textarea><button id="fala-ir" class="btn gold">Falar</button></form></aside>
@@ -82,11 +81,14 @@
 <section id="prologo" hidden></section>
 
 <div id="dialog" class="panel dialog" role="dialog" aria-modal="true" hidden></div>
-<div id="busy">Desenhando o mundo…</div>
+<div id="voz-ctl" aria-label="Voz do mestre"><button id="voz-ligar" class="btn small">Voz ligada</button><button id="voz-calar" class="btn small">Calar</button><input id="voz-volume" type="range" min="0" max="1" step="0.05" aria-label="Volume da voz"></div>
+<section id="menu" hidden></section>
+<div id="busy" hidden>Desenhando o mundo…</div>
 
 <script src="js/mapa.js"></script>
 <script src="js/arte.js"></script>
 <script src="js/campanha.js"></script>
+<script src="js/voz.js"></script>
 <script src="js/jogo.js"></script>
 </body>
 </html>

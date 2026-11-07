@@ -1,5 +1,8 @@
 # gerador de imagens local (ambiente Python e modelos)
 .ia/
 node_modules/
+saves/
 # pinturas criadas durante as partidas
 img/vivo/
+# campanhas salvas no computador
+saves/

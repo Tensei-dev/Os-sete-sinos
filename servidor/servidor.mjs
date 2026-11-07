@@ -5,15 +5,16 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const AQUI = path.dirname(fileURLToPath(import.meta.url)), RAIZ = path.dirname(AQUI);
 const HOST = '127.0.0.1', PORTA = +(process.env.PORTA || 8787);
 const REGRAS = path.join(AQUI, 'mestre.md');
-const TEMPO_MAX = 180000, CORPO_MAX = 32 * 1024;
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp' };
-const CHAVE = /^[a-z0-9-]{3,40}$/;
+const TEMPO_MAX = 180000, CORPO_MAX = 32 * 1024, SAVE_MAX = 1024 * 1024;
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2' };
+const CHAVE = /^[a-z0-9-]{3,40}$/, ID_SAVE = /^(auto|save)-[a-z0-9-]{3,60}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /* pasta vazia: o mestre não enxerga o projeto nem carrega configurações de lá */
@@ -72,6 +73,87 @@ function pedirPintura({ chave, cena }, res) {
   pintarProxima();
 }
 
+/* voz: processo Python com o modelo Piper carregado. Fala já gerada fica em cache e volta na hora */
+const MODELO_VOZ = path.join(RAIZ, '.ia', 'modelo-voz', `${process.env.VOZ || 'pt_BR-faber-medium'}.onnx`);
+const CACHE_VOZ = path.join(RAIZ, '.ia', 'voz');
+let voz = null, vozAtual = null;
+const vozFila = [];
+function ligarVoz() {
+  if (!fs.existsSync(PYTHON) || !fs.existsSync(MODELO_VOZ)) return;
+  fs.mkdirSync(CACHE_VOZ, { recursive: true });
+  voz = spawn(PYTHON, ['-I', path.join(RAIZ, 'ferramentas', 'voz.py'), MODELO_VOZ], { cwd: RAIZ, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+  let resto = '';
+  voz.stdout.on('data', d => {
+    resto += d.toString('utf8');
+    const linhas = resto.split('\n'); resto = linhas.pop();
+    for (const l of linhas) {
+      if (!l.startsWith('@@') || !vozAtual) continue;
+      const p = vozAtual; vozAtual = null;
+      if (JSON.parse(l.slice(2)).ok) enviarAudio(p); else json(p.res, 500, { erro: 'A voz falhou nesta frase.' });
+      falarProxima();
+    }
+  });
+  voz.on('error', () => { voz = null; });
+  voz.on('close', () => {
+    voz = null;
+    for (const p of [vozAtual, ...vozFila.splice(0)]) if (p && !p.cancelado) json(p.res, 503, { erro: 'A voz parou.' });
+    vozAtual = null;
+  });
+}
+function enviarAudio({ arquivo, res }) {
+  if (res.destroyed) return;
+  fs.readFile(arquivo, (e, dados) => {
+    if (e) return json(res, 500, { erro: 'Áudio indisponível.' });
+    res.writeHead(200, { 'Content-Type': 'audio/wav', 'Cache-Control': 'no-store' });
+    res.end(dados);
+  });
+}
+function falarProxima() {
+  while (!vozAtual && vozFila.length) {
+    const p = vozFila.shift();
+    if (p.cancelado) continue;
+    vozAtual = p;
+    voz.stdin.write(JSON.stringify({ texto: p.texto, arquivo: p.arquivo }) + '\n');
+  }
+}
+function pedirVoz({ texto }, res) {
+  if (!voz) return json(res, 503, { erro: 'A voz não está ligada.' });
+  if (typeof texto !== 'string' || !texto.trim() || texto.length > 500) return json(res, 400, { erro: 'Texto inválido.' });
+  const nome = crypto.createHash('sha1').update(`${path.basename(MODELO_VOZ)}|${texto.trim()}`).digest('hex');
+  const p = { texto: texto.trim(), arquivo: path.join(CACHE_VOZ, `${nome}.wav`), res, cancelado: false };
+  if (fs.existsSync(p.arquivo)) return enviarAudio(p);
+  res.on('close', () => { p.cancelado = true; });  // o jogador mudou de cena antes da fala ficar pronta
+  vozFila.push(p); falarProxima();
+}
+
+/* saves: um arquivo JSON por campanha (auto-...) e por ponto salvo com nome (save-...) */
+const SAVES = process.env.PASTA_SAVES || path.join(RAIZ, 'saves');
+fs.mkdirSync(SAVES, { recursive: true });
+const caminhoSave = id => path.join(SAVES, `${id}.json`);
+function listarSaves() {
+  const lista = [];
+  for (const f of fs.readdirSync(SAVES)) {
+    if (!f.endsWith('.json')) continue;
+    try { const { id, tipo, nome, quando, resumo } = JSON.parse(fs.readFileSync(path.join(SAVES, f), 'utf8')); if (ID_SAVE.test(id)) lista.push({ id, tipo, nome, quando, resumo }); }
+    catch { /* arquivo danificado fica de fora da lista */ }
+  }
+  return lista.sort((a, b) => b.quando.localeCompare(a.quando));
+}
+function gravarSave({ id, tipo, nome, resumo, dados }) {
+  const valido = typeof id === 'string' && ID_SAVE.test(id) && id.startsWith(tipo === 'auto' ? 'auto-' : 'save-') && typeof nome === 'string' && nome.length <= 80 && resumo && typeof resumo === 'object' && Array.isArray(dados?.places) && dados?.j?.h;
+  if (!valido) return null;
+  const quando = new Date().toISOString(), tmp = `${caminhoSave(id)}.${process.pid}.${Date.now()}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify({ id, tipo, nome, quando, resumo, dados }));
+  fs.renameSync(tmp, caminhoSave(id));  // troca de uma vez: uma queda no meio não corrompe o save anterior
+  return { id, quando };
+}
+function rotaSave(req, res, id) {
+  if (!ID_SAVE.test(id) || !fs.existsSync(caminhoSave(id))) return json(res, 404, { erro: 'Save não encontrado.' });
+  if (req.method === 'DELETE') { fs.unlinkSync(caminhoSave(id)); return json(res, 200, { ok: true }); }
+  res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+  res.end(fs.readFileSync(caminhoSave(id)));
+}
+
 /* só aceita pedidos do próprio endereço, o que barra outros sites e DNS rebinding */
 function daqui(req) {
   const ok = [`127.0.0.1:${PORTA}`, `localhost:${PORTA}`];
@@ -79,10 +161,10 @@ function daqui(req) {
   const o = req.headers.origin;
   return !o || ok.some(h => o === `http://${h}`);
 }
-function lerCorpo(req) {
+function lerCorpo(req, max = CORPO_MAX) {
   return new Promise((res, rej) => {
     let n = 0; const partes = [];
-    req.on('data', c => { n += c.length; if (n > CORPO_MAX) rej(new Error('grande')); else partes.push(c); });
+    req.on('data', c => { n += c.length; if (n > max) rej(new Error('grande')); else partes.push(c); });
     req.on('end', () => res(Buffer.concat(partes).toString('utf8')));
     req.on('error', rej);
   });
@@ -139,19 +221,31 @@ function turno(pedido, req, res) {
 const servidor = http.createServer(async (req, res) => {
   if (!daqui(req)) return json(res, 403, { erro: 'Acesso permitido só nesta máquina.' });
   const url = req.url.split('?')[0];
-  if (req.method === 'GET' && url === '/api/status') return json(res, 200, { mestre: true, pintor: !!pintor });
+  if (req.method === 'GET' && url === '/api/status') return json(res, 200, { mestre: true, pintor: !!pintor, voz: !!voz });
   if (req.method === 'POST' && url === '/api/mestre') {
     if (!(req.headers['content-type'] || '').startsWith('application/json')) return json(res, 415, { erro: 'Formato inválido.' });
     try { return turno(JSON.parse(await lerCorpo(req)), req, res); }
     catch { return res.headersSent ? res.end() : json(res, 400, { erro: 'Pedido inválido.' }); }
+  }
+  if (req.method === 'POST' && url === '/api/voz') {
+    if (!(req.headers['content-type'] || '').startsWith('application/json')) return json(res, 415, { erro: 'Formato inválido.' });
+    try { return pedirVoz(JSON.parse(await lerCorpo(req)), res); }
+    catch { return json(res, 400, { erro: 'Pedido inválido.' }); }
   }
   if (req.method === 'POST' && url === '/api/imagem') {
     if (!(req.headers['content-type'] || '').startsWith('application/json')) return json(res, 415, { erro: 'Formato inválido.' });
     try { return pedirPintura(JSON.parse(await lerCorpo(req)), res); }
     catch { return json(res, 400, { erro: 'Pedido inválido.' }); }
   }
+  if (url === '/api/saves' && req.method === 'GET') return json(res, 200, listarSaves());
+  if (url === '/api/saves' && req.method === 'POST') {
+    if (!(req.headers['content-type'] || '').startsWith('application/json')) return json(res, 415, { erro: 'Formato inválido.' });
+    try { const r = gravarSave(JSON.parse(await lerCorpo(req, SAVE_MAX))); return r ? json(res, 200, r) : json(res, 400, { erro: 'Save inválido.' }); }
+    catch { return json(res, 400, { erro: 'Não consegui gravar o save.' }); }
+  }
+  if (url.startsWith('/api/saves/') && (req.method === 'GET' || req.method === 'DELETE')) return rotaSave(req, res, decodeURIComponent(url.slice(11)));
   if (req.method === 'GET') return arquivo(req, res, url);
   json(res, 405, { erro: 'Método não permitido.' });
 });
-servidor.listen(PORTA, HOST, () => { console.log(`Os Sete Sinos: http://${HOST}:${PORTA}  (feche esta janela para desligar)`); ligarPintor(); });
-for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => { pintor?.stdin.end(); process.exit(0); });
+servidor.listen(PORTA, HOST, () => { console.log(`Os Sete Sinos: http://${HOST}:${PORTA}  (feche esta janela para desligar)`); ligarPintor(); ligarVoz(); });
+for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => { pintor?.stdin.end(); voz?.stdin.end(); process.exit(0); });

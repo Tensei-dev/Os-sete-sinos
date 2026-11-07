@@ -481,9 +481,9 @@ const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 const rle = a => { const out = []; let cur = a[0], n = 0; for (let i = 0; i < a.length; i++) { if (a[i] === cur) n++; else { out.push(n); cur = a[i]; n = 1; } } out.push(n); return a[0] + ':' + out.map(v => v.toString(36)).join(','); };
 const unrle = s => { const [first, runs] = s.split(':'), a = new Uint8Array(N); let v = +first, i = 0; for (const r of runs.split(',')) { const n = parseInt(r, 36); a.fill(v, i, i + n); i += n; v = 1 - v; } return a; };
-const snapshot = () => ({ v: 1, j: J, name: S.name, places: S.places, realmNames: S.realmNames, party: S.party, day: S.day, fog: rle(S.fog), mode: S.mode, log: S.log.slice(0, 40), nextId: S.nextId });
+const snapshot = () => ({ v: 1, textos: 2, j: J, name: S.name, places: S.places, realmNames: S.realmNames, party: S.party, day: S.day, fog: rle(S.fog), mode: S.mode, log: S.log.slice(0, 40), nextId: S.nextId });
 let saveT = 0;
-function save() { clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(snapshot())); } catch (_) { /* sem armazenamento: o código do mundo continua disponível */ } }, 300); }
+function save() { autosalvar(); clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(STORE, JSON.stringify(snapshot())); } catch (_) { /* sem armazenamento: o código do mundo continua disponível */ } }, 300); }
 function loadSaved() { try { const j = localStorage.getItem(STORE); return j ? JSON.parse(j) : null; } catch (_) { return null; } }
 
 let mundoPronto = false;
@@ -493,6 +493,7 @@ function iniciarMundo(saved, depois) {
     if (!mundoPronto) { w = generate(); bake(); mundoPronto = true; }
     const okPlace = p => p && PT[p.type] && Number.isInteger(p.x) && Number.isInteger(p.y) && p.x >= 0 && p.y >= 0 && p.x < W && p.y < H && typeof p.name === 'string';
     S.name = w.name; S.places = saved?.places?.filter(okPlace) || w.places.map(p => ({ ...p }));
+    if (saved && saved.textos !== 2) for (const p of S.places) { const novo = LUGARES_MAPA.find(q => q.id === p.id); if (novo) p.desc = novo.desc; }
     S.realmNames = saved?.realmNames || w.realms.map(r => r.name);
     S.nextId = saved?.nextId || 1000; S.day = saved?.day || 1; S.log = Array.isArray(saved?.log) ? saved.log.map(String) : []; S.mode = saved?.mode || 'pl';
     const v = S.places.find(p => p.id === 1);
