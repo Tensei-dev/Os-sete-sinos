@@ -835,7 +835,7 @@ function openHelp() {
     <p>Clique em um lugar do mapa para abrir a ficha e use <b>Entrar</b>. Dentro dele, clique nos marcadores dourados para descer mais um nível. As migalhas no topo levam de volta.</p>
     <p>Eu narro à direita, e você escolhe o que fazer. Testes usam d20 mais o seu modificador.</p>
     <div class="keys"><span>1 a 5</span><span>Trocar de ferramenta</span><span>M</span><span>Alternar Mestre e Jogadores</span><span>F</span><span>Ver o mapa inteiro</span><span>G</span><span>Ir até o grupo</span><span>H</span><span>Mostrar hexágonos</span><span>P</span><span>Pausar o jogo</span><span>+ e −</span><span>Zoom</span><span>Esc</span><span>Fechar e limpar</span></div>
-    <p>Tudo é salvo neste navegador. Para levar a campanha a outro computador, use o código na janela Campanha.</p>`);
+    <p>Tudo é salvo sozinho${TEM_SERVIDOR ? ' na pasta saves do projeto' : ' neste navegador'}. Para levar a campanha a outro computador, use o código na janela Campanha.</p>`);
 }
 function syncDay() { $('day').textContent = S.day; }
 const roll = n => { const a = new Uint32Array(1); crypto.getRandomValues(a); return 1 + a[0] % n; };

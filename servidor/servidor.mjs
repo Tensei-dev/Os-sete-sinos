@@ -31,6 +31,17 @@ function acharClaude() {
   return process.platform === 'win32' ? 'claude.exe' : 'claude';
 }
 const CLAUDE = acharClaude();
+/* confirma que o executável roda; não confere o login, que só aparece no primeiro turno */
+function verClaude() {
+  return new Promise(res => {
+    try {
+      const p = spawn(CLAUDE, ['--version'], { windowsHide: true, stdio: 'ignore', timeout: 15000 });
+      p.on('error', () => res(false));
+      p.on('close', cod => res(cod === 0));
+    } catch { res(false); }
+  });
+}
+const claudeOk = verClaude();
 let ocupado = false;
 
 /* pintor: processo Python que mantém o modelo na memória. Pinta uma imagem por vez e guarda
@@ -222,7 +233,7 @@ function turno(pedido, req, res) {
 const servidor = http.createServer(async (req, res) => {
   if (!daqui(req)) return json(res, 403, { erro: 'Acesso permitido só nesta máquina.' });
   const url = req.url.split('?')[0];
-  if (req.method === 'GET' && url === '/api/status') return json(res, 200, { mestre: true, pintor: !!pintor, voz: !!voz });
+  if (req.method === 'GET' && url === '/api/status') return json(res, 200, { mestre: await claudeOk, pintor: !!pintor, voz: !!voz });
   if (req.method === 'POST' && url === '/api/mestre') {
     if (!(req.headers['content-type'] || '').startsWith('application/json')) return json(res, 415, { erro: 'Formato inválido.' });
     try { return turno(JSON.parse(await lerCorpo(req)), req, res); }
@@ -249,5 +260,5 @@ const servidor = http.createServer(async (req, res) => {
   json(res, 405, { erro: 'Método não permitido.' });
 });
 servidor.on('error', e => { console.error(e.code === 'EADDRINUSE' ? `A porta ${PORTA} já está em uso. Feche a outra janela do jogo.` : e.message); process.exit(1); });
-servidor.listen(PORTA, HOST, () => { console.log(`Os Sete Sinos: http://${HOST}:${PORTA}  (feche esta janela para desligar)`); ligarPintor(); ligarVoz(); });
+servidor.listen(PORTA, HOST, () => { console.log(`Os Sete Sinos: http://${HOST}:${PORTA}  (feche esta janela para desligar)`); ligarPintor(); ligarVoz(); claudeOk.then(ok => { if (!ok) console.log('Claude Code não encontrado: o mestre ao vivo fica desligado. Defina CLAUDE_BIN com o caminho do executável.'); }); });
 for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => { pintor?.stdin.end(); voz?.stdin.end(); process.exit(0); });
