@@ -283,31 +283,6 @@ function pix(rows, pal, outline) {
   put(0, 0, ch => pal[ch]);
   return c;
 }
-const PLACE_SPR = {
-  castle: pix([
-    '.......g.......', '.......ggg.....', '.......k.......', '..k.k.sSs.k.k..', '..sss.sSs.sss..', '..sSs.sSs.sSs..',
-    '..sSskkSkksSs..', 'k.sSssssssSss.k', 'sssssskkksssssS', 'sSsSsskykksSsSS', 'sSsSskkkkksSsSS', 'SSSSSkkkkkSSSSS'], SP, true),
-  town: pix([
-    '......r.......', '.....rRr......', '....rrRRr..r..', '...rrrRRRrrRr.', '...tytttytrrRRr', '...ttttttttytt.',
-    '.r..tykktt.tt..', 'rRr.ttkktt.ttt.', 'tytt........ty.'], SP, true),
-  village: pix(['...t.........', '..tTt...r....', '.tTTTt.rRr...', 'ttTTTTrrRRr..', '.tyktt.tykt..', '.ttktt.ttkt..'], SP, true),
-  port: pix([
-    '.....g.....', '.....k.w...', '.....k.ww..', '.....k.www.', '..wwwk.www.', '..wwwk.ww..', '.....k.....',
-    'TTTTTTTTTTT', '.TtttttttT.', '..TTTTTTT..', 'bBbbBbbBbbB'], SP, true),
-  fort: pix(['s.s.s.s.s.s', 'sssssssssss', 'sSssSssSssS', 'sSssSssSssS', 'sssskkkssss', 'SSSSkkkSSSS'], SP, true),
-  temple: pix([
-    '.....g.....', '....sws....', '..sswwwss..', '.sswwwwwss.', 'sSSSSSSSSSs', '.s.s.s.s.s.', '.s.s.s.s.s.', '.s.s.s.s.s.', 'SSSSSSSSSSS'], SP, true),
-  tower: pix(['...P...', '...p...', '..pPp..', '.pPPpp.', 'pPPPppp', '.sSSSS.', '.sySSS.', '.sSSSS.', '.sSSyS.', '.sSSSS.', '.sSkkS.', 'ssSkkSS'], SP, true),
-  ruin: pix(['.s.....s....', '.sS....sS...', '.sS....sS.s.', '.sS..s.sS.S.', '.sS.sS.s..S.', 'ssSSsSSs.sSS'], SP, true),
-  cave: pix(['....SSSSS....', '..SSeeSSeSS..', '.SeSkkkkkSeS.', '.SeekkkkkkeS.', 'SSekkkkkkkeSS', 'SeekkkkkkkkeS'], SP, true),
-  lair: pix(['.w...w...w.', '.ww..w..ww.', '..ww.w.ww..', '...r.w.r...', '..rrkkkrr..', '.rrkoookrr.', 'rRkooyookRr'], SP, true),
-  grove: pix(['...bb.....', '..bcbb.bb.', '.bcccbbcbb', '.bccbbbccb', '..bbbbbbb.', '...T...T..'], { ...SP, b: '#2c5a2a', c: '#4f8f42' }, true),
-  belltower: pix(['...r...', '..rRr..', '.rrRRr.', 'SsgggsS', 'SsgkgsS', 'Ssssss.', 'SsSsSs.', 'SsSsSs.', 'SSkkSS.'], SP, true),
-  flag: pix(['k.......', 'krrrrr..', 'krrrrrr.', 'krrrrr..', 'k.......', 'k.......', 'k.......', 'kk......'], SP, true),
-};
-const PARTY_SPR = pix([
-  '...gg....', '..gggg...', '...gg....', '.bbbbbb..', 'bbbBBbbb.', 'b.bBBb.bk', 'y.bBBb.yk', '..bBBb..k', '..t..t...', '.tt..tt..'], SP, true);
-
 function trees() {
   const P = { g: '#3f7c34', G: '#5ea048', d: '#2c5a2a', t: '#5c3a20', s: '#1d3f24', w: '#e8eef2', j: '#1f7038', J: '#3fa35a', a: '#8d9a3e', A: '#b1b552', c: '#3e8a58', C: '#67b37a', h: '#7a8742', q: '#94a94f', b: '#4f4632', z: '#6f6448' };
   return {
@@ -432,7 +407,7 @@ function bake() {
 
   bakeRealms(); bakeRoads(); bakeHex();
   const mctx = miniBase.getContext('2d'); mctx.imageSmoothingEnabled = true; mctx.imageSmoothingQuality = 'high';
-  mctx.drawImage(terrainC, 0, 0, W, H);
+  mctx.drawImage(mapaPintado.complete && mapaPintado.naturalWidth ? mapaPintado : terrainC, 0, 0, W, H);
 }
 function bakeRealms() {
   const c = realmC.getContext('2d'); c.clearRect(0, 0, PW, PH);
@@ -475,7 +450,12 @@ function bakeHex() {
 
 /* ===== Estado da campanha ===== */
 const S = { name: '', places: [], realmNames: [], party: { x: 0, y: 0 }, day: 1, fog: new Uint8Array(N), mode: 'pl', log: [], nextId: 1000 };
-const L = { realms: true, roads: true, labels: true, hex: false, fog: true, clouds: true };
+const L = { realms: false, roads: false, labels: true, hex: false, fog: true, clouds: false };
+let jogoPausado = false;
+/* a pintura do mundo substitui o terreno; o terreno gerado segue valendo para rotas e biomas */
+const mapaPintado = new Image();
+mapaPintado.onload = () => { const c = miniBase.getContext('2d'); c.imageSmoothingQuality = 'high'; c.drawImage(mapaPintado, 0, 0, W, H); dirty(); };
+mapaPintado.src = 'img/mapa_mundo.webp';
 let tool = 'explore', selected = null, route = null, ruler = [], fogMode = 1, hover = null, moving = false;
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -535,7 +515,7 @@ function renderFog() {
 
 /* ===== Câmera e desenho ===== */
 const cv = $('map'), ctx = cv.getContext('2d'), mini = $('mini'), mctx = mini.getContext('2d');
-const cam = { x: 0, y: 0, z: 1 };
+const cam = { x: 0, y: 0, z: 1 }, ZOOM_MAX = 1.7;  // além disso a pintura perde definição
 let vw = 0, vh = 0, dpr = 1, needDraw = true;
 const dirty = () => { needDraw = true; };
 function resize() {
@@ -544,20 +524,19 @@ function resize() {
 }
 const fitZ = () => Math.min(vw / PW, vh / PH);
 function fit() { cam.z = Math.max(fitZ(), .2); cam.x = PW / 2 - vw / 2 / cam.z; cam.y = PH / 2 - vh / 2 / cam.z; clampCam(); dirty(); }
-function focusOn(tx, ty, z) { if (z) cam.z = clamp(z, fitZ(), 8); cam.x = (tx + .5) * TS - vw / 2 / cam.z; cam.y = (ty + .5) * TS - vh / 2 / cam.z; clampCam(); dirty(); }
+function focusOn(tx, ty, z) { if (z) cam.z = clamp(z, fitZ(), ZOOM_MAX); cam.x = (tx + .5) * TS - vw / 2 / cam.z; cam.y = (ty + .5) * TS - vh / 2 / cam.z; clampCam(); dirty(); }
 function clampCam() {
   const mx = Math.max(0, (vw / cam.z - PW) / 2), my = Math.max(0, (vh / cam.z - PH) / 2), pad = 40;
   cam.x = clamp(cam.x, -mx - pad, Math.max(-mx - pad, PW - vw / cam.z + mx + pad));
   cam.y = clamp(cam.y, -my - pad, Math.max(-my - pad, PH - vh / cam.z + my + pad));
 }
 function zoomAt(sx, sy, f) {
-  const nz = clamp(cam.z * f, fitZ() * .9, 8), wx = sx / cam.z + cam.x, wy = sy / cam.z + cam.y;
+  const nz = clamp(cam.z * f, fitZ() * .9, ZOOM_MAX), wx = sx / cam.z + cam.x, wy = sy / cam.z + cam.y;
   cam.z = nz; cam.x = wx - sx / nz; cam.y = wy - sy / nz; clampCam(); dirty();
 }
 const S2W = (sx, sy) => ({ x: sx / cam.z + cam.x, y: sy / cam.z + cam.y });
 const W2S = (x, y) => ({ x: (x - cam.x) * cam.z, y: (y - cam.y) * cam.z });
 const canSee = p => S.mode === 'dm' || (!p.hidden && S.fog[p.y * W + p.x]);
-const iconScale = () => clamp(Math.round(cam.z), 1, 4);
 const ptScreen = p => W2S((p.x + .5) * TS, (p.y + .5) * TS);
 
 const clouds = Array.from({ length: 9 }, (_, i) => ({ x: (i * 397) % PW, y: (i * 211 + 90) % PH, s: 1 + i % 2, v: 2 + (i % 4) * .8 }));
@@ -573,10 +552,10 @@ const cloudShadow = (() => { const c = newCanvas(90, 34), x = c.getContext('2d')
 
 function draw(now) {
   const ds = dpr * cam.z;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
   ctx.fillStyle = S.mode === 'pl' ? '#141c30' : SEA_BANDS[0]; ctx.fillRect(0, 0, cv.width, cv.height);
   ctx.setTransform(ds, 0, 0, ds, -cam.x * ds, -cam.y * ds);
-  ctx.drawImage(terrainC, 0, 0);
+  if (mapaPintado.complete && mapaPintado.naturalWidth) ctx.drawImage(mapaPintado, 0, 0, PW, PH); else ctx.drawImage(terrainC, 0, 0);
   if (L.realms) ctx.drawImage(realmC, 0, 0);
   if (L.roads) ctx.drawImage(roadC, 0, 0);
   if (L.hex) ctx.drawImage(hexC, 0, 0);
@@ -598,58 +577,64 @@ function draw(now) {
   drawMini();
   $('zoomv').textContent = cam.z.toFixed(2).replace('.', ',') + 'x';
 }
+const FONTE = 'Cinzel, Georgia, serif';
+function losango(x, y, r, cor) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = 'rgba(8,6,5,.92)'; ctx.fillRect(-r - 2, -r - 2, r * 2 + 4, r * 2 + 4);
+  ctx.fillStyle = cor; ctx.fillRect(-r, -r, r * 2, r * 2);
+  ctx.restore();
+}
+const raioLugar = p => (PT[p.type].rank >= 4 ? 7 : PT[p.type].rank >= 3 ? 6 : 5);
 function drawPlaces() {
-  const sc = iconScale();
   for (const p of S.places) {
     if (!canSee(p)) continue;
-    const c = PLACE_SPR[PT[p.type].spr], s = ptScreen(p), iw = c.width * sc, ih = c.height * sc;
-    if (s.x < -iw || s.y < -ih || s.x > vw + iw || s.y > vh + ih) continue;
-    const x = Math.round(s.x - iw / 2), y = Math.round(s.y - ih + 3 * sc);
-    ctx.globalAlpha = p.hidden ? .72 : 1; ctx.drawImage(c, x, y, iw, ih); ctx.globalAlpha = 1;
-    if (p.hidden) { ctx.fillStyle = '#b98ce6'; ctx.strokeStyle = '#120a06'; ctx.lineWidth = 2; ctx.save(); ctx.translate(x + iw, y); ctx.rotate(Math.PI / 4); ctx.strokeRect(-3, -3, 6, 6); ctx.fillRect(-3, -3, 6, 6); ctx.restore(); }
-    if (selected === p) { ctx.strokeStyle = '#f2c14e'; ctx.lineWidth = 2; const m = 4; ctx.setLineDash([6, 4]); ctx.strokeRect(x - m, y - m, iw + m * 2, ih + m * 2); ctx.setLineDash([]); }
+    const s = ptScreen(p); if (s.x < -20 || s.y < -20 || s.x > vw + 20 || s.y > vh + 20) continue;
+    ctx.globalAlpha = p.hidden ? .6 : 1;
+    losango(s.x, s.y, raioLugar(p), p.bloqueio ? '#6f655a' : '#b8926a');
+    ctx.globalAlpha = 1;
+    if (selected === p) { ctx.strokeStyle = '#f2ece2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(s.x, s.y, raioLugar(p) + 8, 0, 7); ctx.stroke(); }
   }
 }
-// sobre um lugar, o token fica ao lado para não esconder o ícone
+// sobre um lugar, o token fica ao lado para não esconder o marcador
 const partyScreen = () => {
   const s = W2S((S.party.x + .5) * TS, (S.party.y + .5) * TS), p = S.places.find(q => q.x === S.party.x && q.y === S.party.y && canSee(q));
-  if (p) s.x += (PLACE_SPR[PT[p.type].spr].width + PARTY_SPR.width + 2) / 2 * iconScale();
+  if (p) s.x += 20;
   return s;
 };
 function drawParty() {
-  const sc = iconScale() + 1, s = partyScreen(), iw = PARTY_SPR.width * sc, ih = PARTY_SPR.height * sc;
-  ctx.fillStyle = 'rgba(0,0,0,.4)'; ctx.fillRect(s.x - iw / 2 + sc, s.y + sc * 2, iw - sc * 2, sc);
-  ctx.drawImage(PARTY_SPR, Math.round(s.x - iw / 2), Math.round(s.y - ih + 3 * sc), iw, ih);
+  const s = partyScreen();
+  ctx.beginPath(); ctx.arc(s.x, s.y, 10, 0, 7); ctx.fillStyle = '#7a5638'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(8,6,5,.92)'; ctx.stroke();
+  ctx.beginPath(); ctx.arc(s.x, s.y, 8.5, 0, 7); ctx.lineWidth = 1.5; ctx.strokeStyle = '#f2ece2'; ctx.stroke();
+  ctx.fillStyle = '#f2ece2'; ctx.beginPath(); ctx.moveTo(s.x - 4, s.y - 4); ctx.lineTo(s.x + 4, s.y - 4); ctx.lineTo(s.x + 4, s.y + 1); ctx.lineTo(s.x, s.y + 5); ctx.lineTo(s.x - 4, s.y + 1); ctx.fill();
 }
 function textOut(t, x, y, font, fill, lw = 3) {
   ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = '#120a06'; ctx.lineWidth = lw; ctx.strokeText(t, x, y); ctx.fillStyle = fill; ctx.fillText(t, x, y);
+  ctx.strokeStyle = 'rgba(8,6,5,.9)'; ctx.lineWidth = lw; ctx.strokeText(t, x, y); ctx.fillStyle = fill; ctx.fillText(t, x, y);
 }
 function drawLabels() {
-  const z = cam.z, sc = iconScale(), boxes = [];
+  const z = cam.z, boxes = [];
   const fits = (x, y, wd, h) => { for (const b of boxes) if (Math.abs(b.x - x) < (b.w + wd) / 2 && Math.abs(b.y - y) < (b.h + h) / 2) return false; boxes.push({ x, y, w: wd, h }); return true; };
-  const minRank = z < .45 ? 4 : z < .75 ? 3 : z < 1.25 ? 2 : 1;
-  const list = S.places.filter(p => canSee(p) && (PT[p.type].rank >= minRank || p === selected)).sort((a, b) => PT[b.type].rank - PT[a.type].rank);
+  const list = S.places.filter(canSee).sort((a, b) => PT[b.type].rank - PT[a.type].rank);
   // nomes de reinos enquanto a visão está afastada
   if (L.realms && z < 1.05) w.realms.forEach((r, k) => {
     const x0 = r.tile % W, y0 = r.tile / W | 0; if (S.mode === 'pl' && !S.fog[r.tile]) return;
     const s = W2S((x0 + .5) * TS, (y0 - 6) * TS), t = S.realmNames[k].toUpperCase();
-    ctx.globalAlpha = .92; textOut(t, s.x, s.y, '700 15px "Pixelify Sans", monospace', r.color, 4); ctx.globalAlpha = 1;
-    const tw = ctx.measureText(t).width; boxes.push({ x: s.x, y: s.y - 5, w: tw, h: 18 });
+    textOut(t, s.x, s.y, `600 14px ${FONTE}`, '#f2ece2', 4);
+    boxes.push({ x: s.x, y: s.y - 5, w: ctx.measureText(t).width, h: 18 });
   });
   for (const p of list) {
-    const rank = PT[p.type].rank, c = PLACE_SPR[PT[p.type].spr], s = ptScreen(p), f = rank >= 4 ? '700 15px' : rank >= 3 ? '600 13px' : '400 12px';
-    const y = s.y + 3 * sc + (rank >= 4 ? 16 : 13); if (s.x < -80 || s.x > vw + 80 || s.y < -30 || s.y > vh + 30) continue;
-    ctx.font = `${f} "Pixelify Sans", monospace`;
+    const rank = PT[p.type].rank, s = ptScreen(p), f = rank >= 4 ? '700 15px' : rank >= 3 ? '600 14px' : '600 13px';
+    const y = s.y + raioLugar(p) + 17; if (s.x < -80 || s.x > vw + 80 || s.y < -30 || s.y > vh + 30) continue;
+    ctx.font = `${f} ${FONTE}`;
     const wd = ctx.measureText(p.name).width + 6; if (!fits(s.x, y - 5, wd, 16)) continue;
-    textOut(p.name, s.x, y, ctx.font, rank >= 4 ? '#f2c14e' : '#f3e6c9');
-    if (rank >= 3 && p.pop && z > .9) textOut(`${fmt(p.pop)} hab.`, s.x, y + 12, '400 11px "Pixelify Sans", monospace', '#c9b793');
+    textOut(p.name, s.x, y, ctx.font, '#f2ece2');
+    if (rank >= 3 && p.pop && z > .9) textOut(`${fmt(p.pop)} hab.`, s.x, y + 14, `400 12px ${FONTE}`, '#c9b7a3');
   }
 }
 function drawRoute() {
   if (!route) return;
   const r = Math.max(2, Math.min(3, cam.z * 1.6));
-  [[r + 1, '#120a06'], [r, '#f2c14e']].forEach(([rad, col]) => {
+  [[r + 1, '#120a06'], [r, '#f2ece2']].forEach(([rad, col]) => {
     ctx.fillStyle = col;
     route.path.forEach((i, k) => { if (k % 2) return; const s = W2S((i % W + .5) * TS, ((i / W | 0) + .5) * TS); ctx.fillRect(s.x - rad, s.y - rad, rad * 2, rad * 2); });
   });
@@ -662,13 +647,13 @@ function drawRuler() {
   ctx.setLineDash([]);
   let km = 0;
   pts.forEach((p, i) => {
-    ctx.fillStyle = '#120a06'; ctx.fillRect(p.x - 5, p.y - 5, 10, 10); ctx.fillStyle = '#f2c14e'; ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
-    if (i) { km += rulerKm(ruler[i - 1], ruler[i]); textOut(`${fmt(km)} km`, p.x, p.y - 12, '600 14px "Pixelify Sans", monospace', '#f3e6c9'); }
+    ctx.fillStyle = '#120a06'; ctx.fillRect(p.x - 5, p.y - 5, 10, 10); ctx.fillStyle = '#b8926a'; ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+    if (i) { km += rulerKm(ruler[i - 1], ruler[i]); textOut(`${fmt(km)} km`, p.x, p.y - 12, `600 14px ${FONTE}`, '#f2ece2'); }
   });
 }
 const rulerKm = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) / TS * KM;
 function drawMini() {
-  mctx.imageSmoothingEnabled = false;
+  mctx.imageSmoothingEnabled = true;
   mctx.drawImage(miniBase, 0, 0);
   if (S.mode === 'pl') mctx.drawImage(fogC, 0, 0, W, H);
   else if (L.realms) { mctx.globalAlpha = .55; mctx.imageSmoothingEnabled = true; mctx.drawImage(realmC, 0, 0, W, H); mctx.imageSmoothingEnabled = false; mctx.globalAlpha = 1; }
@@ -678,7 +663,7 @@ function drawMini() {
 }
 let lastCloud = 0;
 function frame(now) {
-  if (L.clouds && !reduced && now - lastCloud > 120) { lastCloud = now; needDraw = true; }
+  if (L.clouds && !reduced && !jogoPausado && now - lastCloud > 120) { lastCloud = now; needDraw = true; }
   if (needDraw && w) { needDraw = false; draw(now); }
   requestAnimationFrame(frame);
 }
@@ -717,6 +702,7 @@ function startTravel(aoChegar) {
     save(); dirty(); if (typeof aoChegar === 'function') aoChegar();
   };
   const step = () => {
+    if (jogoPausado) return setTimeout(step, 120);
     const i = r.path[k++]; S.party.x = i % W; S.party.y = i / W | 0; reveal(S.party.x, S.party.y, 9); dirty();
     if (k < r.path.length) setTimeout(step, reduced ? 0 : 28); else finish();
   };
@@ -836,7 +822,7 @@ function fillItems() {
     .sort((a, b) => PT[b.type].rank - PT[a.type].rank || a.name.localeCompare(b.name, 'pt-BR'));
   for (const p of list) {
     const b = document.createElement('button'); b.className = 'item';
-    const src = PLACE_SPR[PT[p.type].spr], c = newCanvas(16, 16), x = c.getContext('2d'); x.drawImage(src, (16 - src.width) / 2 | 0, (16 - src.height) / 2 | 0);
+    const c = document.createElement('i');
     const t = document.createElement('span'); t.innerHTML = `${esc(p.name)}<small>${PT[p.type].label} · ${esc(realmName(p.realm))}${p.hidden ? ' · oculto' : ''}</small>`;
     b.append(c, t); b.addEventListener('click', () => { focusOn(p.x, p.y, Math.max(cam.z, 1.2)); openPlace(p); });
     it.appendChild(b);
@@ -848,7 +834,7 @@ function openHelp() {
   dialog(`<div class="row" style="justify-content:space-between"><h2>Como usar</h2><button class="btn small" data-close aria-label="Fechar">✕</button></div>
     <p>Clique em um lugar do mapa para abrir a ficha e use <b>Entrar</b>. Dentro dele, clique nos marcadores dourados para descer mais um nível. As migalhas no topo levam de volta.</p>
     <p>Eu narro à direita, e você escolhe o que fazer. Testes usam d20 mais o seu modificador.</p>
-    <div class="keys"><span>1 a 5</span><span>Trocar de ferramenta</span><span>M</span><span>Alternar Mestre e Jogadores</span><span>F</span><span>Ver o mapa inteiro</span><span>G</span><span>Ir até o grupo</span><span>H</span><span>Mostrar hexágonos</span><span>+ e −</span><span>Zoom</span><span>Esc</span><span>Fechar e limpar</span></div>
+    <div class="keys"><span>1 a 5</span><span>Trocar de ferramenta</span><span>M</span><span>Alternar Mestre e Jogadores</span><span>F</span><span>Ver o mapa inteiro</span><span>G</span><span>Ir até o grupo</span><span>H</span><span>Mostrar hexágonos</span><span>P</span><span>Pausar o jogo</span><span>+ e −</span><span>Zoom</span><span>Esc</span><span>Fechar e limpar</span></div>
     <p>Tudo é salvo neste navegador. Para levar a campanha a outro computador, use o código na janela Campanha.</p>`);
 }
 function syncDay() { $('day').textContent = S.day; }
@@ -864,15 +850,15 @@ function hoverInfo(tx, ty) {
   setStatus(`${BIOME[w.biome[i]].n}${extra}${w.road[i] ? ' · estrada' : ''}${w.riverT[i] ? ' · rio' : ''}`);
 }
 function placeAt(sx, sy) {
-  const sc = iconScale(); let best = null, bd = 1e9;
+  let best = null, bd = 16;
   for (const p of S.places) {
     if (!canSee(p)) continue;
-    const s = ptScreen(p), c = PLACE_SPR[PT[p.type].spr], hw = c.width * sc / 2 + 3, top = c.height * sc - 3 * sc + 3;
-    if (Math.abs(sx - s.x) <= hw && sy <= s.y + 3 * sc + 3 && sy >= s.y - top) { const d = Math.hypot(sx - s.x, sy - s.y); if (d < bd) { bd = d; best = p; } }
+    const c = ptScreen(p), d = Math.hypot(sx - c.x, sy - c.y);
+    if (d < bd) { bd = d; best = p; }
   }
   return best;
 }
-function overParty(sx, sy) { const s = partyScreen(), sc = iconScale() + 1; return Math.abs(sx - s.x) < PARTY_SPR.width * sc / 2 && sy < s.y + 4 * sc && sy > s.y - PARTY_SPR.height * sc; }
+function overParty(sx, sy) { const s = partyScreen(); return Math.hypot(sx - s.x, sy - s.y) < 13; }
 
 function clickMap(sx, sy) {
   const p = S2W(sx, sy), tx = clamp(p.x / TS | 0, 0, W - 1), ty = clamp(p.y / TS | 0, 0, H - 1), hit = placeAt(sx, sy);

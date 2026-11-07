@@ -17,7 +17,7 @@ function revelarLugar(id) { const p = S.places.find(q => q.id === id); if (p) { 
 /* ---------- prólogo e criação ---------- */
 function mostrarArte(cv2, k) {
   const c = cv2.getContext('2d'); cv2.dataset.k = k;
-  imagemReal(k, im => { if (cv2.dataset.k === k) pintarNo(cv2, im); }, () => {
+  imagemReal(k, im => { if (cv2.dataset.k === k) pintarNo(cv2, im, k.startsWith('m_')); }, () => {
     if (cv2.dataset.k !== k) return;
     const base = arte(k), pintura = !k.startsWith('m_');
     cv2.width = base.width; cv2.height = base.height; cv2.classList.toggle('pixel', !pintura); c.imageSmoothingEnabled = pintura;
@@ -25,11 +25,11 @@ function mostrarArte(cv2, k) {
     if (cv2.id === 'arte') modoQuadro(!pintura);
   });
 }
-function pintarNo(cv2, im) {
+function pintarNo(cv2, im, mapa = false) {
   const c = cv2.getContext('2d'); cv2.width = AW * ESC; cv2.height = AH * ESC; cv2.classList.remove('pixel');
   const e = Math.max(cv2.width / im.width, cv2.height / im.height), iw = im.width * e, ih = im.height * e;
   c.imageSmoothingEnabled = true; c.imageSmoothingQuality = 'high'; c.drawImage(im, (cv2.width - iw) / 2, (cv2.height - ih) / 2, iw, ih);
-  if (cv2.id === 'arte') modoQuadro(false);
+  if (cv2.id === 'arte') modoQuadro(mapa);
 }
 /* pinturas cobrem a tela inteira; mapas locais ocupam a área ao lado do mestre, para os marcadores
    continuarem sobre os prédios certos */
@@ -51,7 +51,7 @@ function verImagem() {
 }
 function prologo(i = 0) {
   const pr = $('prologo'), s = PROLOGO[i]; pr.hidden = false;
-  pr.innerHTML = `<canvas id="pr-arte"></canvas><div class="texto"><h2>${esc(s.t)}</h2><p>${esc(s.x)}</p><div class="row"><button id="pr-ok" class="btn gold">${i + 1 < PROLOGO.length ? 'Continuar' : 'Criar personagem'}</button>${i ? '' : '<button id="pr-pula" class="btn">Pular prólogo</button>'}</div></div>`;
+  pr.innerHTML = `<canvas id="pr-arte"></canvas><div class="texto"><h2>${esc(s.t)}</h2><p>${esc(s.x)}</p><div class="row"><button id="pr-ok" class="btn gold">${i + 1 < PROLOGO.length ? 'Continuar' : 'Criar personagem'}</button><button class="btn" data-pausa>Pausar</button>${i ? '' : '<button id="pr-pula" class="btn">Pular prólogo</button>'}</div></div>`;
   mostrarArte($('pr-arte'), s.arte); Voz.falar(s.x);
   $('pr-ok').addEventListener('click', () => i + 1 < PROLOGO.length ? prologo(i + 1) : criacao());
   $('pr-pula')?.addEventListener('click', criacao);
@@ -469,6 +469,25 @@ $('fala').addEventListener('submit', e => {
   if (v && !falando) { c.value = ''; falarMestre(v); }
 });
 $('fala-txt').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('fala').requestSubmit(); } });
+
+/* ---------- pausa: congela a voz, a viagem e as nuvens; o que já foi pedido ao mestre continua ---------- */
+function pausar() {
+  if (jogoPausado || !J?.h && $('prologo').hidden || !$('menu').hidden || !$('busy').hidden) return;
+  jogoPausado = true; Voz.pausar(); $('pausa').hidden = false;
+  $('pausa-info').textContent = J.h ? `${J.h.nome}, dia ${S.day}${moving ? ' · viagem em andamento' : ''}` : 'Prólogo';
+  $('pa-salvar').hidden = !J.h; $('pa-menu').hidden = moving; $('pa-continuar').focus();
+  gravarAgora();
+}
+function continuarJogo() { if (!jogoPausado) return; jogoPausado = false; $('pausa').hidden = true; $('dialog').hidden = true; Voz.continuar(); dirty(); }
+document.addEventListener('click', e => { if (e.target.closest('[data-pausa]')) pausar(); });
+$('pa-continuar').addEventListener('click', continuarJogo);
+$('pa-salvar').addEventListener('click', abrirSalvar);
+$('pa-menu').addEventListener('click', () => { continuarJogo(); Voz.parar(); gravarAgora(); abrirMenu(); });
+addEventListener('keydown', e => {
+  if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || e.ctrlKey || e.altKey || e.metaKey) return;
+  if (e.key.toLowerCase() === 'p') { e.preventDefault(); e.stopImmediatePropagation(); jogoPausado ? continuarJogo() : pausar(); }
+  else if (e.key === 'Escape' && jogoPausado) { e.stopImmediatePropagation(); if ($('dialog').hidden) continuarJogo(); else $('dialog').hidden = true; }
+}, true);
 
 /* ---------- ligações ---------- */
 $('b-world').addEventListener('click', abrirCampanha);

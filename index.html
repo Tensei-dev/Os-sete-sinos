@@ -16,6 +16,7 @@
   </div>
   <button id="b-places" class="btn">Lugares</button>
   <button id="b-realms" class="btn">Reinos</button>
+  <button class="btn" data-pausa>Pausar</button>
   <button id="b-salvar" class="btn">Salvar</button>
   <button id="b-ficha" class="btn">Ficha</button>
   <button id="b-lore" class="btn">Crônicas</button>
@@ -30,12 +31,12 @@
   <canvas id="mini" width="240" height="160" aria-label="Minimapa"></canvas>
   <div class="scale tn"><span id="zoomv">1x</span><span title="Um dia de marcha em ritmo normal">1 hex = 36 km</span></div>
   <div class="layers">
-    <label><input type="checkbox" id="l-realms" checked>Reinos</label>
-    <label><input type="checkbox" id="l-roads" checked>Estradas</label>
+    <label><input type="checkbox" id="l-realms">Reinos</label>
+    <label><input type="checkbox" id="l-roads">Estradas</label>
     <label><input type="checkbox" id="l-labels" checked>Nomes</label>
     <label><input type="checkbox" id="l-hex">Hexágonos</label>
     <label id="l-fog-w"><input type="checkbox" id="l-fog" checked>Névoa</label>
-    <label><input type="checkbox" id="l-clouds" checked>Nuvens</label>
+    <label><input type="checkbox" id="l-clouds">Nuvens</label>
   </div>
   <div class="party">
     <div class="row" style="justify-content:space-between"><span class="label">Calendário</span><span class="tn">Dia <b id="day">1</b></span></div>
@@ -73,7 +74,7 @@
 </nav>
 
 <section id="imersao" hidden>
-  <div id="im-top"><div id="migalhas"></div><div id="hud"></div><button id="im-salvar" class="btn small">Salvar</button><button id="im-ficha" class="btn small">Ficha</button><button id="im-lore" class="btn small">Crônicas</button><button id="im-limpa" class="btn small">Ver imagem</button><button id="im-cheia" class="btn small">Tela cheia</button></div>
+  <div id="im-top"><div id="migalhas"></div><div id="hud"></div><button class="btn small" data-pausa>Pausar</button><button id="im-salvar" class="btn small">Salvar</button><button id="im-ficha" class="btn small">Ficha</button><button id="im-lore" class="btn small">Crônicas</button><button id="im-limpa" class="btn small">Ver imagem</button><button id="im-cheia" class="btn small">Tela cheia</button></div>
   <div id="palco"><div id="quadro"><canvas id="arte" aria-label="Ilustração da cena"></canvas><div id="pins"></div><div id="balao" hidden></div><div id="selo" hidden>O mestre está pintando a cena…</div></div></div>
   <aside id="mestre" aria-live="polite"><div class="quem">O mestre narra <span id="mestre-vivo" hidden>· ao vivo</span></div><h2 id="titulo"></h2><div id="falas"></div><div id="opcoes"></div>
     <form id="fala" hidden><textarea id="fala-txt" rows="2" maxlength="2000" placeholder="Diga ao mestre o que você faz" aria-label="Fale com o mestre"></textarea><button id="fala-ir" class="btn gold">Falar</button></form></aside>
@@ -82,6 +83,7 @@
 
 <div id="dialog" class="panel dialog" role="dialog" aria-modal="true" hidden></div>
 <div id="voz-ctl" aria-label="Voz do mestre"><button id="voz-ligar" class="btn small">Voz ligada</button><button id="voz-calar" class="btn small">Calar</button><input id="voz-volume" type="range" min="0" max="1" step="0.05" aria-label="Volume da voz"></div>
+<section id="pausa" hidden aria-label="Jogo pausado"><div class="caixa"><h1>Pausado</h1><p id="pausa-info"></p><button id="pa-continuar" class="btn opcao">Continuar</button><button id="pa-salvar" class="btn opcao">Salvar</button><button id="pa-menu" class="btn opcao">Tela inicial</button></div></section>
 <section id="menu" hidden></section>
 <div id="busy" hidden>Desenhando o mundo…</div>
 

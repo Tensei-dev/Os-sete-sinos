@@ -73,15 +73,15 @@ function pedirPintura({ chave, cena }, res) {
   pintarProxima();
 }
 
-/* voz: processo Python com o modelo Piper carregado. Fala já gerada fica em cache e volta na hora */
-const MODELO_VOZ = path.join(RAIZ, '.ia', 'modelo-voz', `${process.env.VOZ || 'pt_BR-faber-medium'}.onnx`);
-const CACHE_VOZ = path.join(RAIZ, '.ia', 'voz');
+/* voz: processo Python com o modelo Kokoro carregado. Fala já gerada fica em cache e volta na hora */
+const PYTHON_VOZ = path.join(RAIZ, '.ia', 'venv-voz', 'Scripts', 'python.exe'), NOME_VOZ = process.env.VOZ || 'pm_santa';
+const CACHE_VOZ = path.join(RAIZ, '.ia', 'voz'), SCRIPT_VOZ = path.join(RAIZ, 'ferramentas', 'voz.py');
 let voz = null, vozAtual = null;
 const vozFila = [];
 function ligarVoz() {
-  if (!fs.existsSync(PYTHON) || !fs.existsSync(MODELO_VOZ)) return;
+  if (!fs.existsSync(PYTHON_VOZ)) return;
   fs.mkdirSync(CACHE_VOZ, { recursive: true });
-  voz = spawn(PYTHON, ['-I', path.join(RAIZ, 'ferramentas', 'voz.py'), MODELO_VOZ], { cwd: RAIZ, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
+  voz = spawn(PYTHON_VOZ, ['-I', SCRIPT_VOZ, NOME_VOZ], { cwd: RAIZ, windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'] });
   let resto = '';
   voz.stdout.on('data', d => {
     resto += d.toString('utf8');
@@ -119,7 +119,8 @@ function falarProxima() {
 function pedirVoz({ texto }, res) {
   if (!voz) return json(res, 503, { erro: 'A voz não está ligada.' });
   if (typeof texto !== 'string' || !texto.trim() || texto.length > 500) return json(res, 400, { erro: 'Texto inválido.' });
-  const nome = crypto.createHash('sha1').update(`${path.basename(MODELO_VOZ)}|${texto.trim()}`).digest('hex');
+  const nome = crypto.createHash('sha1').update(`${NOME_VOZ}|${fs.statSync(SCRIPT_VOZ).mtimeMs}|${texto.trim()}`)  // mudar a voz descarta o áudio antigo
+   .digest('hex');
   const p = { texto: texto.trim(), arquivo: path.join(CACHE_VOZ, `${nome}.wav`), res, cancelado: false };
   if (fs.existsSync(p.arquivo)) return enviarAudio(p);
   res.on('close', () => { p.cancelado = true; });  // o jogador mudou de cena antes da fala ficar pronta
@@ -247,5 +248,6 @@ const servidor = http.createServer(async (req, res) => {
   if (req.method === 'GET') return arquivo(req, res, url);
   json(res, 405, { erro: 'Método não permitido.' });
 });
+servidor.on('error', e => { console.error(e.code === 'EADDRINUSE' ? `A porta ${PORTA} já está em uso. Feche a outra janela do jogo.` : e.message); process.exit(1); });
 servidor.listen(PORTA, HOST, () => { console.log(`Os Sete Sinos: http://${HOST}:${PORTA}  (feche esta janela para desligar)`); ligarPintor(); ligarVoz(); });
 for (const sinal of ['SIGINT', 'SIGTERM']) process.on(sinal, () => { pintor?.stdin.end(); voz?.stdin.end(); process.exit(0); });
